@@ -4,10 +4,27 @@
 // License text available at https://opensource.org/licenses/MIT
 
 import {DefaultCrudRepository} from '@loopback/repository';
-import {CrudRepositoryCtor, crudRepositoryTestSuite} from '../..';
+import {
+  CrudRepositoryCtor,
+  crudRepositoryTestSuite,
+  relationsRepositoryTestSuite,
+} from '../..';
 
 describe('DefaultCrudRepository + memory connector', () => {
   crudRepositoryTestSuite(
+    {connector: 'memory'},
+    // Workaround for the following TypeScript error
+    //   Type 'DefaultCrudRepository<T, ID, {}>' is not assignable to
+    //     type 'EntityCrudRepository<T, ID, Relations>'.
+    // See https://github.com/microsoft/TypeScript/issues/31840
+    DefaultCrudRepository as CrudRepositoryCtor,
+    {
+      idType: 'number',
+      supportsTransactions: false,
+    },
+  );
+
+  relationsRepositoryTestSuite(
     {connector: 'memory'},
     // Workaround for the following TypeScript error
     //   Type 'DefaultCrudRepository<T, ID, {}>' is not assignable to

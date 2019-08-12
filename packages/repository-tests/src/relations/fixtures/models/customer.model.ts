@@ -1,9 +1,16 @@
 // Copyright IBM Corp. 2019. All Rights Reserved.
-// Node module: @loopback/repository
+// Node module: @loopback/repository-tests
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
-import {belongsTo, Entity, hasMany, hasOne, model, property} from '../../..';
+import {
+  belongsTo,
+  Entity,
+  hasMany,
+  hasOne,
+  model,
+  property,
+} from '@loopback/repository';
 import {Address, AddressWithRelations} from './address.model';
 import {Order, OrderWithRelations} from './order.model';
 
@@ -12,6 +19,7 @@ export class Customer extends Entity {
   @property({
     type: 'number',
     id: true,
+    generated: true,
   })
   id: number;
 

@@ -7,11 +7,19 @@ import {DefaultTransactionalRepository} from '@loopback/repository';
 import {
   CrudRepositoryCtor,
   crudRepositoryTestSuite,
+  relationsRepositoryTestSuite,
 } from '@loopback/repository-tests';
 import {MYSQL_CONFIG, MYSQL_FEATURES} from './mysql.datasource';
 
 describe('MySQL + DefaultTransactionalRepository', () => {
   crudRepositoryTestSuite(
+    MYSQL_CONFIG,
+    // Workaround for https://github.com/microsoft/TypeScript/issues/31840
+    DefaultTransactionalRepository as CrudRepositoryCtor,
+    MYSQL_FEATURES,
+  );
+
+  relationsRepositoryTestSuite(
     MYSQL_CONFIG,
     // Workaround for https://github.com/microsoft/TypeScript/issues/31840
     DefaultTransactionalRepository as CrudRepositoryCtor,

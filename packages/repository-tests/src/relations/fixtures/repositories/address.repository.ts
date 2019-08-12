@@ -9,7 +9,7 @@ import {
   DefaultCrudRepository,
   juggler,
   repository,
-} from '../../..';
+} from '@loopback/repository';
 import {Address, AddressRelations, Customer} from '../models';
 import {CustomerRepository} from '../repositories';
 

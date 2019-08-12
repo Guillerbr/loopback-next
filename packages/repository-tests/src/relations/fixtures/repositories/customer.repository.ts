@@ -8,10 +8,10 @@ import {
   BelongsToAccessor,
   DefaultCrudRepository,
   HasManyRepositoryFactory,
+  HasOneRepositoryFactory,
   juggler,
   repository,
-} from '../../..';
-import {HasOneRepositoryFactory} from '../../../';
+} from '@loopback/repository';
 import {Address, Customer, CustomerRelations, Order} from '../models';
 import {AddressRepository} from './address.repository';
 import {OrderRepository} from './order.repository';
@@ -43,17 +43,19 @@ export class CustomerRepository extends DefaultCrudRepository<
     @repository.getter('OrderRepository')
     orderRepositoryGetter: Getter<OrderRepository>,
     @repository.getter('AddressRepository')
-    addressRepositoryGetter: Getter<AddressRepository>,
+    addressRepositoryGetter?: Getter<AddressRepository>,
   ) {
     super(Customer, db);
     this.orders = this.createHasManyRepositoryFactoryFor(
       'orders',
       orderRepositoryGetter,
     );
-    this.address = this.createHasOneRepositoryFactoryFor(
-      'address',
-      addressRepositoryGetter,
-    );
+    if (addressRepositoryGetter) {
+      this.address = this.createHasOneRepositoryFactoryFor(
+        'address',
+        addressRepositoryGetter,
+      );
+    }
     this.customers = this.createHasManyRepositoryFactoryFor(
       'customers',
       Getter.fromValue(this),

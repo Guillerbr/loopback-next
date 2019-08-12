@@ -7,11 +7,19 @@ import {DefaultCrudRepository} from '@loopback/repository';
 import {
   CrudRepositoryCtor,
   crudRepositoryTestSuite,
+  relationsRepositoryTestSuite,
 } from '@loopback/repository-tests';
 import {MONGODB_CONFIG, MONGODB_FEATURES} from './mongodb.datasource';
 
 describe('MongoDB + DefaultCrudRepository', () => {
   crudRepositoryTestSuite(
+    MONGODB_CONFIG,
+    // Workaround for https://github.com/microsoft/TypeScript/issues/31840
+    DefaultCrudRepository as CrudRepositoryCtor,
+    MONGODB_FEATURES,
+  );
+
+  relationsRepositoryTestSuite(
     MONGODB_CONFIG,
     // Workaround for https://github.com/microsoft/TypeScript/issues/31840
     DefaultCrudRepository as CrudRepositoryCtor,

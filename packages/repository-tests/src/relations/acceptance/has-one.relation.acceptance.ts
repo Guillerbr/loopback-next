@@ -1,10 +1,9 @@
 // Copyright IBM Corp. 2019. All Rights Reserved.
-// Node module: @loopback/repository
+// Node module: @loopback/repository-tests
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
 import {Application} from '@loopback/core';
-import {expect, toJSON} from '@loopback/testlab';
 import {
   ApplicationWithRepositories,
   EntityNotFoundError,
@@ -12,7 +11,8 @@ import {
   juggler,
   repository,
   RepositoryMixin,
-} from '../..';
+} from '@loopback/repository';
+import {expect, toJSON} from '@loopback/testlab';
 import {Address} from '../fixtures/models';
 import {AddressRepository, CustomerRepository} from '../fixtures/repositories';
 

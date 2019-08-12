@@ -1,11 +1,17 @@
 // Copyright IBM Corp. 2019. All Rights Reserved.
-// Node module: @loopback/repository
+// Node module: @loopback/repository-tests
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
+import {
+  AnyObject,
+  DefaultCrudRepository,
+  Entity,
+  model,
+  property,
+} from '@loopback/repository';
 import {expect} from '@loopback/testlab';
 import {DataSource} from 'loopback-datasource-juggler';
-import {AnyObject, DefaultCrudRepository, Entity, model, property} from '../..';
 import {Product} from '../fixtures/models/product.model';
 import {ProductRepository} from '../fixtures/repositories/product.repository';
 

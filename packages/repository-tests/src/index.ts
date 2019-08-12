@@ -4,6 +4,7 @@
 // License text available at https://opensource.org/licenses/MIT
 
 export * from './crud-test-suite';
+export * from './relations-test-suite';
 export * from './types.repository-tests';
 
 // TODO(bajtos) Implement test suite for KeyValue repository
