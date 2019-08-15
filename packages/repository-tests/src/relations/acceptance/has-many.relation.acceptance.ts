@@ -30,7 +30,8 @@ export function hasManyRelationAcceptance(
 
     let customerRepo: CustomerRepository;
     let orderRepo: OrderRepository;
-    let existingCustomerId: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let existingCustomerId: any;
 
     before(
       withCrudCtx(async function setupRepository(ctx: CrudTestContext) {
@@ -57,8 +58,8 @@ export function hasManyRelationAcceptance(
       existingCustomerId = (await givenPersistedCustomerInstance()).id;
     });
 
-    it('can create an instance of the related model', async () => {
-      const order = await createCustomerOrders(existingCustomerId, {
+    it.only('can create an instance of the related model', async () => {
+      const order = await customerRepo.orders(existingCustomerId).create({
         description: 'order 1',
       });
       expect(order.toObject()).to.containDeep({
