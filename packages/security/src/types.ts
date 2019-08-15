@@ -31,8 +31,14 @@ export class TypedPrincipal implements Principal {
   }
 }
 
+/**
+ * The minimum set of attributes that describe a user.
+ */
 export interface UserProfile extends Principal {
-  // basic user information
+  // `email` and `name` are added to be identical with the
+  // current `UserProfile` being exported from `@loopback/authentication`
+  email?: string;
+  name?: string;
 }
 
 export interface Organization extends Principal {}
