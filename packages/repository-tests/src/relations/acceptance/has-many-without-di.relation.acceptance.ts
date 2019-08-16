@@ -34,99 +34,88 @@ export function hasManyWithoutDIRelationAcceptance(
   describe('HasMany relation without di (acceptance)', () => {
     before(deleteAllModelsInDefaultDataSource);
     // Given a Customer and Order models - see definitions at the bottom
-
-    // let existingCustomerId: number;
+    let existingCustomerId: string;
     let ds: juggler.DataSource;
     let customerRepo: CustomerRepository;
     let orderRepo: OrderRepository;
 
     before(
       withCrudCtx(async function setupRepository(ctx: CrudTestContext) {
-        givenDataSource(ctx.dataSource);
+        ds = ctx.dataSource;
         givenOrderRepository();
         givenCustomerRepository();
-        await ctx.dataSource.automigrate(Customer.name);
-        await ctx.dataSource.automigrate(Order.name);
+        await ctx.dataSource.automigrate([Customer.name, Order.name]);
       }),
     );
 
-    // before(givenDataSource(ctx.dataSource));
-    // before(givenOrderRepository);
-    // before(givenCustomerRepository);
     beforeEach(async () => {
       await orderRepo.deleteAll();
-      //existingCustomerId = (await givenPersistedCustomerInstance()).id;
+      existingCustomerId = (await givenPersistedCustomerInstance()).id;
     });
 
-    it('can create an instance of the related model (acceptance)', async () => {
+    it('can create an instance of the related model', async () => {
       async function createCustomerOrders(
-        customerId: number,
+        customerId: string,
         orderData: Partial<Order>,
       ): Promise<Order> {
         return customerRepo.orders(customerId).create(orderData);
       }
-      const customerA = await customerRepo.create({name: 'customer A'});
-      const order = await createCustomerOrders(customerA.id, {
+      const order = await createCustomerOrders(existingCustomerId, {
         description: 'order 1',
       });
-      expect({
-        customerId: order.id.valueOf(),
-        description: order.description,
-      }).to.eql({
-        customerId: customerA.id,
-        description: 'order 1',
-      });
+      // do this to avoid type problems of BSON type of mongodb
+      expect(order.customerId.toString()).eql(existingCustomerId.toString());
+      expect(order.description).to.eql('order 1');
 
       const persisted = await orderRepo.findById(order.id);
-      console.log(persisted);
+
       expect(persisted.toObject()).to.deepEqual(order.toObject());
     });
 
     it('can find instances of the related model (acceptance)', async () => {
       async function createCustomerOrders(
-        customerId: number,
+        customerId: string,
         orderData: Partial<Order>,
       ): Promise<Order> {
         return customerRepo.orders(customerId).create(orderData);
       }
-      async function findCustomerOrders(customerId: number) {
+      async function findCustomerOrders(customerId: string) {
         return customerRepo.orders(customerId).find();
       }
-      const customerB = await customerRepo.create({name: 'customer B'});
-      const customerC = await customerRepo.create({name: 'customer c'});
 
-      const order = await createCustomerOrders(customerB.id, {
+      const order = await createCustomerOrders(existingCustomerId, {
         description: 'order 1',
       });
-      console.log(typeof customerB.id);
-      console.log(customerB);
-      console.log(typeof order.id);
-      console.log(order);
 
-      const notMyOrder = await createCustomerOrders(customerC.id, {
+      const notMyOrder = await createCustomerOrders(existingCustomerId + 1, {
         description: 'order 2',
       });
-      const orders = await findCustomerOrders(customerB.id);
+      const orders = await findCustomerOrders(existingCustomerId);
 
       expect(orders).to.containEql(order);
       expect(orders).to.not.containEql(notMyOrder);
 
       const persisted = await orderRepo.find({
-        where: {customerId: customerB.id},
+        where: {customerId: existingCustomerId},
       });
       expect(persisted).to.deepEqual(orders);
     });
 
     //--- HELPERS ---//
 
-    @model()
+    // use strictObjectIDCoercion here to make sure mongo's happy
+    @model({
+      settings: {
+        strictObjectIDCoercion: true,
+      },
+    })
     class Order extends Entity {
       @property({
         type: features.idType,
         id: true,
         generated: true,
       })
-      id: number;
+      id: string;
 
       @property({
         type: 'string',
@@ -138,17 +127,21 @@ export function hasManyWithoutDIRelationAcceptance(
         type: features.idType,
         required: true,
       })
-      customerId: number;
+      customerId: string;
     }
 
-    @model()
+    @model({
+      settings: {
+        strictObjectIDCoercion: true,
+      },
+    })
     class Customer extends Entity {
       @property({
         type: features.idType,
         id: true,
         generated: true,
       })
-      id: number;
+      id: string;
 
       @property({
         type: 'string',
@@ -191,10 +184,6 @@ export function hasManyWithoutDIRelationAcceptance(
       }
     }
 
-    function givenDataSource(db: juggler.DataSource) {
-      ds = db;
-    }
-
     function givenOrderRepository() {
       orderRepo = new OrderRepository(ds);
     }
@@ -203,8 +192,8 @@ export function hasManyWithoutDIRelationAcceptance(
       customerRepo = new CustomerRepository(ds, Getter.fromValue(orderRepo));
     }
 
-    // async function givenPersistedCustomerInstance() {
-    //   return customerRepo.create({name: 'a customer'});
-    // }
+    async function givenPersistedCustomerInstance() {
+      return customerRepo.create({name: 'a customer'});
+    }
   });
 }

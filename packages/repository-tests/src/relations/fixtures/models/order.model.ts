@@ -7,7 +7,11 @@ import {belongsTo, Entity, model, property} from '@loopback/repository';
 import {Customer, CustomerWithRelations} from './customer.model';
 import {Shipment, ShipmentWithRelations} from './shipment.model';
 
-@model()
+@model({
+  settings: {
+    strictObjectIDCoercion: true,
+  },
+})
 export class Order extends Entity {
   @property({
     type: 'string',

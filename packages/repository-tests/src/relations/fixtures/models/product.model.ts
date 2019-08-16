@@ -5,11 +5,16 @@
 
 import {Entity, model, property} from '@loopback/repository';
 
-@model()
+@model({
+  settings: {
+    strictObjectIDCoercion: true,
+  },
+})
 export class Product extends Entity {
   @property({
     type: 'number',
     id: true,
+    generated: true,
     description: 'The unique identifier for a product',
   })
   id: number;

@@ -3,7 +3,6 @@
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
-import {juggler} from '@loopback/repository';
 import {expect} from '@loopback/testlab';
 import {
   deleteAllModelsInDefaultDataSource,
@@ -21,6 +20,7 @@ import {
   OrderRepository,
   ShipmentRepository,
 } from '../fixtures/repositories';
+import {givenBoundCrudRepositories} from '../helpers';
 
 export function belongsToRelationAcceptance(
   dataSourceOptions: DataSourceOptions,
@@ -46,10 +46,11 @@ export function belongsToRelationAcceptance(
           }
         });
 
-        await givenBoundCrudRepositories(ctx.dataSource);
-        await ctx.dataSource.automigrate(Customer.name);
-        await ctx.dataSource.automigrate(Order.name);
-        await ctx.dataSource.automigrate(Shipment.name);
+        ({customerRepo, orderRepo, shipmentRepo} = givenBoundCrudRepositories(
+          ctx.dataSource,
+        ));
+
+        await ctx.dataSource.automigrate(models.map(m => m.name));
       }),
     );
 
@@ -83,17 +84,5 @@ export function belongsToRelationAcceptance(
       const result = await orderRepo.shipment(order.id);
       expect(result).to.deepEqual(shipment);
     });
-
-    //--- HELPERS ---//
-
-    async function givenBoundCrudRepositories(db: juggler.DataSource) {
-      orderRepo = new OrderRepository(
-        db,
-        async () => customerRepo,
-        async () => shipmentRepo,
-      );
-      customerRepo = new repositoryClass(Customer, db) as CustomerRepository;
-      shipmentRepo = new repositoryClass(Shipment, db) as ShipmentRepository;
-    }
   });
 }

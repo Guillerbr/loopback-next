@@ -3,259 +3,283 @@
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
-import {Application} from '@loopback/core';
-import {
-  ApplicationWithRepositories,
-  EntityNotFoundError,
-  Filter,
-  juggler,
-  repository,
-  RepositoryMixin,
-} from '@loopback/repository';
+import {EntityNotFoundError, Filter} from '@loopback/repository';
 import {expect, toJSON} from '@loopback/testlab';
-import {Address} from '../fixtures/models';
+import {
+  CrudFeatures,
+  CrudRepositoryCtor,
+  CrudTestContext,
+  DataSourceOptions,
+} from '../..';
+import {
+  deleteAllModelsInDefaultDataSource,
+  withCrudCtx,
+} from '../../helpers.repository-tests';
+import {Address, Customer} from '../fixtures/models';
 import {AddressRepository, CustomerRepository} from '../fixtures/repositories';
+import {givenBoundCrudRepositories} from '../helpers';
 
-describe('hasOne relation', () => {
-  // Given a Customer and Address models - see definitions at the bottom
+export function hasOneRelationAcceptance(
+  dataSourceOptions: DataSourceOptions,
+  repositoryClass: CrudRepositoryCtor,
+  features: CrudFeatures,
+) {
+  describe('hasOne relation (acceptance)', () => {
+    let customerRepo: CustomerRepository;
+    let addressRepo: AddressRepository;
+    let existingCustomerId: number;
 
-  let app: ApplicationWithRepositories;
-  let controller: CustomerController;
-  let customerRepo: CustomerRepository;
-  let addressRepo: AddressRepository;
-  let existingCustomerId: number;
+    before(deleteAllModelsInDefaultDataSource);
 
-  before(givenApplicationWithMemoryDB);
-  before(givenBoundCrudRepositoriesForCustomerAndAddress);
-  before(givenCustomerController);
+    before(
+      withCrudCtx(async function setupRepository(ctx: CrudTestContext) {
+        ({customerRepo, addressRepo} = givenBoundCrudRepositories(
+          ctx.dataSource,
+        ));
 
-  beforeEach(async () => {
-    await addressRepo.deleteAll();
-    existingCustomerId = (await givenPersistedCustomerInstance()).id;
-  });
+        const models = [Customer, Address];
 
-  it('can create an instance of the related model', async () => {
-    const address = await controller.createCustomerAddress(existingCustomerId, {
-      street: '123 test avenue',
-    });
-    expect(address.toObject()).to.containDeep({
-      customerId: existingCustomerId,
-      street: '123 test avenue',
-    });
+        models.forEach(model => {
+          if (model === Customer) {
+            model.definition.properties.id.type = features.idType;
+            model.definition.properties.parentId.type = features.idType;
+          }
+          if (model === Address) {
+            model.definition.properties.id.type = features.idType;
+            model.definition.properties.customerId.type = features.idType;
+          }
+        });
 
-    const persisted = await addressRepo.findById(address.zipcode);
-    expect(persisted.toObject()).to.deepEqual(address.toObject());
-  });
-
-  // We do not enforce referential integrity at the moment. It is up to
-  // our users to set up unique constraint(s) between related models at the
-  // database level
-  it.skip('refuses to create related model instance twice', async () => {
-    const address = await controller.createCustomerAddress(existingCustomerId, {
-      street: '123 test avenue',
-    });
-    await expect(
-      controller.createCustomerAddress(existingCustomerId, {
-        street: '456 test street',
+        await ctx.dataSource.automigrate(models.map(m => m.name));
       }),
-    ).to.be.rejectedWith(/Duplicate entry for Address.customerId/);
-    expect(address.toObject()).to.containDeep({
-      customerId: existingCustomerId,
-      street: '123 test avenue',
-    });
-
-    const persisted = await addressRepo.findById(address.zipcode);
-    expect(persisted.toObject()).to.deepEqual(address.toObject());
-  });
-
-  it('can find instance of the related model', async () => {
-    const address = await controller.createCustomerAddress(existingCustomerId, {
-      street: '123 test avenue',
-    });
-    const foundAddress = await controller.findCustomerAddress(
-      existingCustomerId,
-    );
-    expect(foundAddress).to.containEql(address);
-    expect(toJSON(foundAddress)).to.deepEqual(toJSON(address));
-
-    const persisted = await addressRepo.find({
-      where: {customerId: existingCustomerId},
-    });
-    expect(persisted[0]).to.deepEqual(foundAddress);
-  });
-
-  // FIXME(b-admike): make sure the test fails with compiler error
-  it.skip('ignores where filter to find related model instance', async () => {
-    const foundAddress = await controller.findCustomerAddressWithFilter(
-      existingCustomerId,
-      // the compiler should complain that the where field is
-      // not accepted in the filter object for the get() method
-      // if the following line is uncommented
-      {
-        where: {street: '456 test road'},
-      },
     );
 
-    const persisted = await addressRepo.find({
-      where: {customerId: existingCustomerId},
-    });
-    // TODO: make sure this test fails when where condition is supplied
-    // compiler should have errored out (?)
-    expect(persisted[0]).to.deepEqual(foundAddress);
-  });
-
-  it('reports EntityNotFound error when related model is deleted', async () => {
-    const address = await controller.createCustomerAddress(existingCustomerId, {
-      street: '123 test avenue',
-    });
-    await addressRepo.deleteById(address.zipcode);
-
-    await expect(
-      controller.findCustomerAddress(existingCustomerId),
-    ).to.be.rejectedWith(EntityNotFoundError);
-  });
-
-  it('can PATCH hasOne instances', async () => {
-    const address = await controller.createCustomerAddress(existingCustomerId, {
-      street: '1 Amedee Bonnet',
-      zipcode: '69740',
-      city: 'Genas',
-      province: 'Rhone',
+    beforeEach(async () => {
+      await addressRepo.deleteAll();
+      existingCustomerId = (await givenPersistedCustomerInstance()).id;
     });
 
-    const patchObject = {city: 'Lyon-Genas'};
-    const arePatched = await controller.patchCustomerAddress(
-      existingCustomerId,
-      patchObject,
-    );
+    it('can create an instance of the related model', async () => {
+      const address = await createCustomerAddress(existingCustomerId, {
+        street: '123 test avenue',
+      });
+      expect(address.toObject()).to.containDeep({
+        customerId: existingCustomerId,
+        street: '123 test avenue',
+      });
 
-    expect(arePatched).to.deepEqual({count: 1});
-    const patchedData = await addressRepo.findById(address.zipcode);
-    expect(toJSON(patchedData)).to.deepEqual({
-      customerId: existingCustomerId,
-      street: '1 Amedee Bonnet',
-      zipcode: '69740',
-      city: 'Lyon-Genas',
-      province: 'Rhone',
-    });
-  });
-
-  it('patches the related instance only', async () => {
-    const bob = await customerRepo.create({name: 'Bob'});
-    await customerRepo.address(bob.id).create({city: 'Paris'});
-
-    const alice = await customerRepo.create({name: 'Alice'});
-    await customerRepo.address(alice.id).create({city: 'London'});
-
-    const result = await controller.patchCustomerAddress(alice.id, {
-      city: 'New York',
+      const persisted = await addressRepo.findById(address.id);
+      expect(persisted.toObject()).to.deepEqual(address.toObject());
     });
 
-    expect(result).to.deepEqual({count: 1});
+    // We do not enforce referential integrity at the moment. It is up to
+    // our users to set up unique constraint(s) between related models at the
+    // database level
+    it.skip('refuses to create related model instance twice', async () => {
+      const address = await createCustomerAddress(existingCustomerId, {
+        street: '123 test avenue',
+      });
+      await expect(
+        createCustomerAddress(existingCustomerId, {
+          street: '456 test street',
+        }),
+      ).to.be.rejectedWith(/Duplicate entry for Address.customerId/);
+      expect(address.toObject()).to.containDeep({
+        customerId: existingCustomerId,
+        street: '123 test avenue',
+      });
 
-    const found = await customerRepo.address(bob.id).get();
-    expect(toJSON(found)).to.containDeep({city: 'Paris'});
-  });
-
-  it('throws an error when PATCH tries to change the foreignKey', async () => {
-    await expect(
-      controller.patchCustomerAddress(existingCustomerId, {
-        customerId: existingCustomerId + 1,
-      }),
-    ).to.be.rejectedWith(/Property "customerId" cannot be changed!/);
-  });
-
-  it('can DELETE hasOne relation instances', async () => {
-    await controller.createCustomerAddress(existingCustomerId, {
-      street: '1 Amedee Bonnet',
-      zipcode: '69740',
-      city: 'Genas',
-      province: 'Rhone',
+      const persisted = await addressRepo.findById(address.id);
+      expect(persisted.toObject()).to.deepEqual(address.toObject());
     });
 
-    const areDeleted = await controller.deleteCustomerAddress(
-      existingCustomerId,
-    );
-    expect(areDeleted).to.deepEqual({count: 1});
+    it('can find instance of the related model', async () => {
+      const address = await createCustomerAddress(existingCustomerId, {
+        street: '123 test avenue',
+      });
+      const foundAddress = await findCustomerAddress(existingCustomerId);
+      expect(foundAddress).to.containEql(address);
+      expect(toJSON(foundAddress)).to.deepEqual(toJSON(address));
 
-    await expect(
-      controller.findCustomerAddress(existingCustomerId),
-    ).to.be.rejectedWith(EntityNotFoundError);
-  });
+      const persisted = await addressRepo.find({
+        where: {customerId: existingCustomerId},
+      });
+      expect(persisted[0]).to.deepEqual(foundAddress);
+    });
 
-  it('deletes the related model instance only', async () => {
-    const bob = await customerRepo.create({name: 'Bob'});
-    await customerRepo.address(bob.id).create({city: 'Paris'});
+    // FIXME(b-admike): make sure the test fails with compiler error
+    it.skip('ignores where filter to find related model instance', async () => {
+      const foundAddress = await findCustomerAddressWithFilter(
+        existingCustomerId,
+        // the compiler should complain that the where field is
+        // not accepted in the filter object for the get() method
+        // if the following line is uncommented
+        {
+          where: {street: '456 test road'},
+        },
+      );
 
-    const alice = await customerRepo.create({name: 'Alice'});
-    await customerRepo.address(alice.id).create({city: 'London'});
+      const persisted = await addressRepo.find({
+        where: {customerId: existingCustomerId},
+      });
+      // TODO: make sure this test fails when where condition is supplied
+      // compiler should have errored out (?)
+      expect(persisted[0]).to.deepEqual(foundAddress);
+    });
 
-    const result = await controller.deleteCustomerAddress(alice.id);
+    it('reports EntityNotFound error when related model is deleted', async () => {
+      const address = await createCustomerAddress(existingCustomerId, {
+        street: '123 test avenue',
+      });
+      await addressRepo.deleteById(address.id);
 
-    expect(result).to.deepEqual({count: 1});
+      await expect(findCustomerAddress(existingCustomerId)).to.be.rejectedWith(
+        EntityNotFoundError,
+      );
+    });
 
-    const found = await addressRepo.find();
-    expect(found).to.have.length(1);
-  });
+    it('can PATCH hasOne instances', async () => {
+      const address = await createCustomerAddress(existingCustomerId, {
+        street: '1 Amedee Bonnet',
+        zipcode: '69740',
+        city: 'Genas',
+        province: 'Rhone',
+      });
 
-  /*---------------- HELPERS -----------------*/
+      const patchObject = {city: 'Lyon-Genas'};
+      const arePatched = await patchCustomerAddress(
+        existingCustomerId,
+        patchObject,
+      );
 
-  class CustomerController {
-    constructor(
-      @repository(CustomerRepository)
-      protected customerRepository: CustomerRepository,
-    ) {}
+      expect(arePatched).to.deepEqual({count: 1});
+      const patchedData = await addressRepo.findById(address.id);
+      expect(toJSON(patchedData)).to.deepEqual({
+        id: address.id,
+        customerId: existingCustomerId,
+        street: '1 Amedee Bonnet',
+        zipcode: '69740',
+        city: 'Lyon-Genas',
+        province: 'Rhone',
+      });
+    });
 
-    async createCustomerAddress(
+    it('patches the related instance only', async () => {
+      const bob = await customerRepo.create({name: 'Bob'});
+      await customerRepo.address(bob.id).create({city: 'Paris'});
+
+      const alice = await customerRepo.create({name: 'Alice'});
+      await customerRepo.address(alice.id).create({city: 'London'});
+
+      const result = await patchCustomerAddress(alice.id, {
+        city: 'New York',
+      });
+
+      expect(result).to.deepEqual({count: 1});
+
+      const found = await customerRepo.address(bob.id).get();
+      expect(toJSON(found)).to.containDeep({city: 'Paris'});
+    });
+
+    it('throws an error when PATCH tries to change the foreignKey', async () => {
+      await expect(
+        patchCustomerAddress(existingCustomerId, {
+          customerId: existingCustomerId + 1,
+        }),
+      ).to.be.rejectedWith(/Property "customerId" cannot be changed!/);
+    });
+
+    it('can DELETE hasOne relation instances', async () => {
+      await createCustomerAddress(existingCustomerId, {
+        street: '1 Amedee Bonnet',
+        zipcode: '69740',
+        city: 'Genas',
+        province: 'Rhone',
+      });
+
+      const areDeleted = await deleteCustomerAddress(existingCustomerId);
+      expect(areDeleted).to.deepEqual({count: 1});
+
+      await expect(findCustomerAddress(existingCustomerId)).to.be.rejectedWith(
+        EntityNotFoundError,
+      );
+    });
+
+    it('deletes the related model instance only', async () => {
+      const bob = await customerRepo.create({name: 'Bob'});
+      await customerRepo.address(bob.id).create({city: 'Paris'});
+
+      const alice = await customerRepo.create({name: 'Alice'});
+      await customerRepo.address(alice.id).create({city: 'London'});
+
+      const result = await deleteCustomerAddress(alice.id);
+
+      expect(result).to.deepEqual({count: 1});
+
+      const found = await addressRepo.find();
+      expect(found).to.have.length(1);
+    });
+
+    /*---------------- HELPERS -----------------*/
+
+    // class CustomerController {
+    //   constructor(
+    //     @repository(CustomerRepository)
+    //     protected customerRepository: CustomerRepository,
+    //   ) {}
+
+    async function createCustomerAddress(
       customerId: number,
       addressData: Partial<Address>,
     ): Promise<Address> {
-      return this.customerRepository.address(customerId).create(addressData);
+      return customerRepo.address(customerId).create(addressData);
     }
 
-    async findCustomerAddress(customerId: number) {
-      return this.customerRepository.address(customerId).get();
+    async function findCustomerAddress(customerId: number) {
+      return customerRepo.address(customerId).get();
     }
 
-    async findCustomerAddressWithFilter(
+    async function findCustomerAddressWithFilter(
       customerId: number,
       filter: Filter<Address>,
     ) {
-      return this.customerRepository.address(customerId).get(filter);
+      return customerRepo.address(customerId).get(filter);
     }
-    async patchCustomerAddress(
+    async function patchCustomerAddress(
       customerId: number,
       addressData: Partial<Address>,
     ) {
-      return this.customerRepository.address(customerId).patch(addressData);
+      return customerRepo.address(customerId).patch(addressData);
     }
 
-    async deleteCustomerAddress(customerId: number) {
-      return this.customerRepository.address(customerId).delete();
+    async function deleteCustomerAddress(customerId: number) {
+      return customerRepo.address(customerId).delete();
     }
-  }
 
-  function givenApplicationWithMemoryDB() {
-    class TestApp extends RepositoryMixin(Application) {}
-    app = new TestApp();
-    app.dataSource(new juggler.DataSource({name: 'db', connector: 'memory'}));
-  }
+    // function givenApplicationWithGivenDB() {
+    //   class TestApp extends RepositoryMixin(Application) {}
+    //   app = new TestApp();
+    //   app.dataSource(new DS());
+    // app.dataSource(new juggler.DataSource({name: 'db', connector: 'memory'}));
+    // }
 
-  async function givenBoundCrudRepositoriesForCustomerAndAddress() {
-    app.repository(CustomerRepository);
-    app.repository(AddressRepository);
-    customerRepo = await app.getRepository(CustomerRepository);
-    addressRepo = await app.getRepository(AddressRepository);
-  }
+    // async function sForCustomerAndAddress() {
+    //   customerRepo = new CustomerRepository(ds);
+    //   app.repository(CustomerRepository);
+    //   app.repository(AddressRepository);
+    //   customerRepo = await app.getRepository(CustomerRepository);
+    //   addressRepo = await app.getRepository(AddressRepository);
+    // }
 
-  async function givenCustomerController() {
-    app.controller(CustomerController);
-    controller = await app.get<CustomerController>(
-      'controllers.CustomerController',
-    );
-  }
+    // async function givenCustomerController() {
+    //   app.controller(CustomerController);
+    //   controller = await app.get<CustomerController>(
+    //     'controllers.CustomerController',
+    //   );
+    // }
 
-  async function givenPersistedCustomerInstance() {
-    return customerRepo.create({name: 'a customer'});
-  }
-});
+    async function givenPersistedCustomerInstance() {
+      return customerRepo.create({name: 'a customer'});
+    }
+  });
+}

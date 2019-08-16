@@ -15,7 +15,7 @@ import {CustomerRepository} from '../repositories';
 
 export class AddressRepository extends DefaultCrudRepository<
   Address,
-  typeof Address.prototype.zipcode,
+  typeof Address.prototype.id,
   AddressRelations
 > {
   public readonly customer: BelongsToAccessor<

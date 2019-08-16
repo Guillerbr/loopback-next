@@ -3,7 +3,6 @@
 // This file is licensed under the MIT License.
 // License text available at https://opensource.org/licenses/MIT
 
-import {juggler} from '@loopback/repository';
 import {expect} from '@loopback/testlab';
 import * as _ from 'lodash';
 import {
@@ -18,6 +17,7 @@ import {
 } from '../../helpers.repository-tests';
 import {Customer, Order} from '../fixtures/models';
 import {CustomerRepository, OrderRepository} from '../fixtures/repositories';
+import {givenBoundCrudRepositories} from '../helpers';
 
 export function hasManyRelationAcceptance(
   dataSourceOptions: DataSourceOptions,
@@ -35,8 +35,12 @@ export function hasManyRelationAcceptance(
 
     before(
       withCrudCtx(async function setupRepository(ctx: CrudTestContext) {
+        ({customerRepo, orderRepo} = givenBoundCrudRepositories(
+          ctx.dataSource,
+        ));
+
         const models = [Customer, Order];
-        models.forEach(model => {
+        models.forEach(async model => {
           model.definition.properties.id.type = features.idType;
           if (model === Order) {
             model.definition.properties.customerId.type = features.idType;
@@ -44,9 +48,7 @@ export function hasManyRelationAcceptance(
           }
         });
 
-        await givenBoundCrudRepositoriesForCustomerAndOrder(ctx.dataSource);
-        await ctx.dataSource.automigrate(Customer.name);
-        await ctx.dataSource.automigrate(Order.name);
+        await ctx.dataSource.automigrate(models.map(m => m.name));
       }),
     );
 
@@ -58,14 +60,16 @@ export function hasManyRelationAcceptance(
       existingCustomerId = (await givenPersistedCustomerInstance()).id;
     });
 
-    it.only('can create an instance of the related model', async () => {
+    it('can create an instance of the related model', async () => {
       const order = await customerRepo.orders(existingCustomerId).create({
         description: 'order 1',
+        // eslint-disable-next-line @typescript-eslint/camelcase
+        shipment_id: 1,
       });
-      expect(order.toObject()).to.containDeep({
-        customerId: existingCustomerId,
-        description: 'order 1',
-      });
+
+      // do this to avoid type problems of BSON type of mongodb
+      expect(order.customerId.toString()).to.eql(existingCustomerId.toString());
+      expect(order.description).to.eql('order 1');
 
       const persisted = await orderRepo.findById(order.id);
       expect(persisted.toObject()).to.deepEqual(order.toObject());
@@ -74,9 +78,13 @@ export function hasManyRelationAcceptance(
     it('can find instances of the related model', async () => {
       const order = await createCustomerOrders(existingCustomerId, {
         description: 'order 1',
+        // eslint-disable-next-line @typescript-eslint/camelcase
+        shipment_id: 1,
       });
       const notMyOrder = await createCustomerOrders(existingCustomerId + 1, {
         description: 'order 2',
+        // eslint-disable-next-line @typescript-eslint/camelcase
+        shipment_id: 1,
       });
       const foundOrders = await findCustomerOrders(existingCustomerId);
       expect(foundOrders).to.containEql(order);
@@ -107,6 +115,11 @@ export function hasManyRelationAcceptance(
         await findCustomerOrders(existingCustomerId),
         d => _.pick(d, ['customerId', 'description', 'isShipped']),
       );
+      // convert the id type for mongo
+      if (features.idType === 'string') {
+        // eslint-disable-next-line require-atomic-updates
+        existingCustomerId = existingCustomerId.toString();
+      }
       expect(patchedData).to.eql([
         {
           customerId: existingCustomerId,
@@ -235,13 +248,6 @@ export function hasManyRelationAcceptance(
 
     async function findCustomerChildren(customerId: number) {
       return customerRepo.customers(customerId).find();
-    }
-
-    async function givenBoundCrudRepositoriesForCustomerAndOrder(
-      db: juggler.DataSource,
-    ) {
-      customerRepo = new CustomerRepository(db, async () => orderRepo);
-      orderRepo = new OrderRepository(db, async () => customerRepo);
     }
 
     async function givenPersistedCustomerInstance() {

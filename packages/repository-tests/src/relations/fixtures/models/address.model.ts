@@ -6,23 +6,35 @@
 import {belongsTo, Entity, model, property} from '@loopback/repository';
 import {Customer, CustomerWithRelations} from './customer.model';
 
-@model()
+@model({
+  settings: {
+    strictObjectIDCoercion: true,
+  },
+})
 export class Address extends Entity {
+  @property({
+    type: 'string',
+    id: true,
+    generated: true,
+  })
+  id: string;
   @property({
     type: 'string',
   })
   street: string;
   @property({
     type: 'string',
-    id: true,
+    default: '12345',
   })
   zipcode: string;
   @property({
     type: 'string',
+    default: 'Toronto',
   })
   city: string;
   @property({
     type: 'string',
+    default: 'Ontario',
   })
   province: string;
 
