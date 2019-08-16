@@ -6,7 +6,7 @@ sidebar: lb4_sidebar
 permalink: /doc/en/lb4/Behind-the-scene.html
 ---
 
-Here are the infrastructure that get all the artifacts working together:
+Here are the infrastructures that get all the artifacts working together:
 
 - [Context](Context.md): An abstraction of states and dependencies in your
   application that LoopBack uses to manage everything. It’s a global registry
