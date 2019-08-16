@@ -1,6 +1,6 @@
 {
   "name": "@loopback/security",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "A LoopBack component for security support.",
   "engines": {
     "node": ">=8.9"
@@ -8,8 +8,7 @@
   "scripts": {
     "acceptance": "lb-mocha \"dist/__tests__/acceptance/**/*.js\"",
     "build": "lb-tsc",
-    "build:apidocs": "lb-apidocs",
-    "clean": "lb-clean loopback-security*.tgz dist package api-docs",
+    "clean": "lb-clean loopback-authorization*.tgz dist package *.tsbuildinfo",
     "integration": "lb-mocha \"dist/__tests__/integration/**/*.js\"",
     "prepublishOnly": "npm run build && npm run build:apidocs",
     "pretest": "npm run build",
@@ -22,12 +21,14 @@
   "license": "MIT",
   "dependencies": {
     "@loopback/context": "^1.13.0",
+    "@loopback/core": "^1.8.5",
     "debug": "^4.1.1"
   },
   "devDependencies": {
     "@loopback/build": "^1.5.2",
     "@loopback/testlab": "^1.2.7",
     "@types/debug": "^4.1.4",
+    "@types/node": "10.14.15",
     "casbin": "^2.0.4"
   },
   "keywords": [
